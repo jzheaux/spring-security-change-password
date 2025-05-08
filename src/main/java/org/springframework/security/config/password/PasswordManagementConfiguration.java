@@ -18,8 +18,10 @@ package org.springframework.security.config.password;
 
 import java.util.List;
 
+import org.springframework.security.core.password.ChangePasswordAdviceService;
 import org.springframework.security.web.password.ChangePasswordAdviceMethodArgumentResolver;
 import org.springframework.security.web.password.ChangePasswordAdviceRepository;
+import org.springframework.security.web.password.ChangePasswordAdviceServiceRepository;
 import org.springframework.security.web.password.HttpSessionChangePasswordAdviceRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,8 +32,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class PasswordManagementConfiguration {
-	private ChangePasswordAdviceRepository changePasswordAdviceRepository =
-		new HttpSessionChangePasswordAdviceRepository();
+	private ChangePasswordAdviceRepository changePasswordAdviceRepository;
+
+	private ChangePasswordAdviceService changePasswordAdviceService;
 
 	@Bean
 	WebMvcConfigurer argumentResolvers() {
@@ -39,7 +42,11 @@ public class PasswordManagementConfiguration {
 			@Override
 			public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
 				ChangePasswordAdviceMethodArgumentResolver resolver = new ChangePasswordAdviceMethodArgumentResolver();
-				resolver.setChangePasswordAdviceRepository(changePasswordAdviceRepository);
+				if (changePasswordAdviceRepository != null) {
+					resolver.setChangePasswordAdviceRepository(changePasswordAdviceRepository);
+				} else if (changePasswordAdviceService != null) {
+					resolver.setChangePasswordAdviceRepository(new ChangePasswordAdviceServiceRepository(changePasswordAdviceService));
+				}
 				resolvers.add(resolver);
 			}
 		};
@@ -48,5 +55,10 @@ public class PasswordManagementConfiguration {
 	@Autowired(required = false)
 	public void setChangePasswordAdviceRepository(ChangePasswordAdviceRepository changePasswordAdviceRepository) {
 		this.changePasswordAdviceRepository = changePasswordAdviceRepository;
+	}
+
+	@Autowired(required = false)
+	public void setChangePasswordAdviceService(ChangePasswordAdviceService changePasswordAdviceService) {
+		this.changePasswordAdviceService = changePasswordAdviceService;
 	}
 }

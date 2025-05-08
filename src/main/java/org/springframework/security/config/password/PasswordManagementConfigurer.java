@@ -16,8 +16,16 @@
 
 package org.springframework.security.config.password;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.security.core.password.ChangePasswordAdviceService;
+import org.springframework.security.core.password.ChangePasswordServiceAdvisor;
+import org.springframework.security.core.password.DelegatingChangePasswordAdvisor;
+import org.springframework.security.core.password.InMemoryChangePasswordAdviceService;
 import org.springframework.security.web.password.ChangePasswordAdviceHandler;
 import org.springframework.security.web.password.ChangePasswordAdviceRepository;
+import org.springframework.security.web.password.ChangePasswordAdviceServiceRepository;
 import org.springframework.security.web.password.ChangePasswordAdvisingFilter;
 import org.springframework.security.web.password.ChangePasswordProcessingFilter;
 import org.springframework.security.web.password.DefaultChangePasswordPageGeneratingFilter;
@@ -37,7 +45,6 @@ import org.springframework.security.core.userdetails.UserDetailsPasswordService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.savedrequest.RequestCacheAwareFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
@@ -100,12 +107,24 @@ public final class PasswordManagementConfigurer<H extends HttpSecurityBuilder<H>
 		ChangePasswordAdviceRepository changePasswordAdviceRepository = (this.changePasswordAdviceRepository != null) ?
 			this.changePasswordAdviceRepository :
 			this.context.getBeanProvider(ChangePasswordAdviceRepository.class)
-				.getIfUnique(HttpSessionChangePasswordAdviceRepository::new);
+				.getIfUnique(() -> {
+					ChangePasswordAdviceService service = this.context.getBeanProvider(ChangePasswordAdviceService.class).getIfUnique();
+					if (service == null) {
+						return new HttpSessionChangePasswordAdviceRepository();
+					}
+					return new ChangePasswordAdviceServiceRepository(service);
+				});
 
 		ChangePasswordAdvisor changePasswordAdvisor = (this.changePasswordAdvisor != null) ?
 			this.changePasswordAdvisor :
 			this.context.getBeanProvider(ChangePasswordAdvisor.class)
-				.getIfUnique(ChangeCompromisedPasswordAdvisor::new);
+				.getIfUnique(() -> {
+					List<ChangePasswordAdvisor> advisors = new ArrayList<>();
+					advisors.add(new ChangeCompromisedPasswordAdvisor());
+					this.context.getBeanProvider(ChangePasswordAdviceService.class)
+						.ifUnique((bean) -> advisors.add(new ChangePasswordServiceAdvisor(bean)));
+					return new DelegatingChangePasswordAdvisor(advisors);
+				});
 
 		http.setSharedObject(ChangePasswordAdviceRepository.class, changePasswordAdviceRepository);
 		http.setSharedObject(ChangePasswordAdvisor.class, changePasswordAdvisor);

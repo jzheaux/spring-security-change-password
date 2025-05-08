@@ -16,7 +16,6 @@
 
 package org.example.backendservice;
 
-import java.util.List;
 import java.util.UUID;
 
 import org.apache.commons.logging.Log;
@@ -31,21 +30,12 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.password.PasswordManagementConfiguration;
 import org.springframework.security.config.password.PasswordManagementConfigurer;
-import org.springframework.security.core.password.ChangeCompromisedPasswordAdvisor;
-import org.springframework.security.core.password.ChangeLengthPasswordAdvisor;
 import org.springframework.security.core.password.ChangePasswordAdviceService;
-import org.springframework.security.core.password.ChangePasswordAdvisor;
-import org.springframework.security.core.password.ChangePasswordServiceAdvisor;
-import org.springframework.security.core.password.ChangeRepeatedPasswordAdvisor;
-import org.springframework.security.core.password.DelegatingChangePasswordAdvisor;
 import org.springframework.security.core.password.InMemoryChangePasswordAdviceService;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.password.ChangePasswordAdviceRepository;
-import org.springframework.security.web.password.ChangePasswordAdviceServiceRepository;
 
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
@@ -78,22 +68,8 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	ChangePasswordAdviceRepository changePasswordAdviceRepository(ChangePasswordAdviceService passwords) {
-		return new ChangePasswordAdviceServiceRepository(passwords);
-	}
-
-	@Bean
 	ChangePasswordAdviceService changePasswordService() {
 		return new InMemoryChangePasswordAdviceService();
-	}
-
-	@Bean
-	ChangePasswordAdvisor changePasswordAdvisor(UserDetailsService users, ChangePasswordAdviceService passwords) {
-		return new DelegatingChangePasswordAdvisor(List.of(
-			new ChangeCompromisedPasswordAdvisor(),
-			new ChangeRepeatedPasswordAdvisor(users),
-			new ChangeLengthPasswordAdvisor(8, 72),
-			new ChangePasswordServiceAdvisor(passwords)));
 	}
 
 }
