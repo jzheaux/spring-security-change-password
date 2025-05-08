@@ -102,10 +102,10 @@ public class ChangePasswordProcessingFilter extends OncePerRequestFilter {
 		}
 		UserDetails user = (UserDetails) authentication.getPrincipal();
 		ChangePasswordAdvice advice = this.changePasswordAdvisor.adviseUpdatedPassword(user, password);
-		this.changePasswordAdviceRepository.savePasswordAdvice(request, response, advice);
 		if (advice.getAction() == ChangePasswordAdvice.Action.KEEP) {
 			this.passwords.updatePassword(user, this.passwordEncoder.encode(password));
 		}
+		this.changePasswordAdviceRepository.savePasswordAdvice(request, response, advice);
 		this.successHandler.onAuthenticationSuccess(request, response, authentication);
 	}
 
