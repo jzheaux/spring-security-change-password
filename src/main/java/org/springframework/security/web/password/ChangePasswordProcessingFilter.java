@@ -35,6 +35,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.core.password.ChangeCompromisedPasswordAdvisor;
 import org.springframework.security.core.password.ChangePasswordAdvice;
+import org.springframework.security.core.password.ChangePasswordAdviceService;
 import org.springframework.security.core.password.ChangePasswordAdvisor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsPasswordService;
@@ -62,15 +63,16 @@ public class ChangePasswordProcessingFilter extends OncePerRequestFilter {
 	private final AuthenticationSuccessHandler successHandler = new SavedRequestAwareAuthenticationSuccessHandler();
 
 	private final UserDetailsPasswordService passwords;
+	private final ChangePasswordAdviceService changePasswordAdviceService;
 
 	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
 	private RequestMatcher requestMatcher = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, DEFAULT_PASSWORD_CHANGE_PROCESSING_URL);
 	private ChangePasswordAdvisor changePasswordAdvisor = new ChangeCompromisedPasswordAdvisor();
 	private PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
-	private ChangePasswordAdviceRepository changePasswordAdviceRepository = new HttpSessionChangePasswordAdviceRepository();
 
-	public ChangePasswordProcessingFilter(UserDetailsPasswordService passwords) {
+	public ChangePasswordProcessingFilter(UserDetailsPasswordService passwords, ChangePasswordAdviceService advice) {
 		this.passwords = passwords;
+		this.changePasswordAdviceService = advice;
 	}
 
 	@Override
@@ -104,13 +106,11 @@ public class ChangePasswordProcessingFilter extends OncePerRequestFilter {
 		ChangePasswordAdvice advice = this.changePasswordAdvisor.adviseUpdatedPassword(user, password);
 		if (advice.getAction() == ChangePasswordAdvice.Action.KEEP) {
 			this.passwords.updatePassword(user, this.passwordEncoder.encode(password));
+			this.changePasswordAdviceService.removePasswordAdvice(user);
+		} else {
+			this.changePasswordAdviceService.savePasswordAdvice(user, advice);
 		}
-		this.changePasswordAdviceRepository.savePasswordAdvice(request, response, advice);
 		this.successHandler.onAuthenticationSuccess(request, response, authentication);
-	}
-
-	public void setChangePasswordAdviceRepository(ChangePasswordAdviceRepository advice) {
-		this.changePasswordAdviceRepository = advice;
 	}
 
 	public void setChangePasswordAdvisor(ChangePasswordAdvisor advisor) {

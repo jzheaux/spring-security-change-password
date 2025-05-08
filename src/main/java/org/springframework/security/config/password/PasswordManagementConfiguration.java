@@ -18,47 +18,44 @@ package org.springframework.security.config.password;
 
 import java.util.List;
 
-import org.springframework.security.core.password.ChangePasswordAdviceService;
-import org.springframework.security.web.password.ChangePasswordAdviceMethodArgumentResolver;
-import org.springframework.security.web.password.ChangePasswordAdviceRepository;
-import org.springframework.security.web.password.ChangePasswordAdviceServiceRepository;
-import org.springframework.security.web.password.HttpSessionChangePasswordAdviceRepository;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Fallback;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.core.password.ChangePasswordAdviceService;
+import org.springframework.security.core.password.InMemoryChangePasswordAdviceService;
+import org.springframework.security.web.password.ChangePasswordAdviceMethodArgumentResolver;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class PasswordManagementConfiguration {
-	private ChangePasswordAdviceRepository changePasswordAdviceRepository;
-
-	private ChangePasswordAdviceService changePasswordAdviceService;
+	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
 
 	@Bean
-	WebMvcConfigurer argumentResolvers() {
+	@Fallback
+	ChangePasswordAdviceService changePasswordAdviceService() {
+		return new InMemoryChangePasswordAdviceService();
+	}
+
+	@Bean
+	WebMvcConfigurer argumentResolvers(ChangePasswordAdviceService changePasswordAdviceService) {
 		return new WebMvcConfigurer() {
 			@Override
 			public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
-				ChangePasswordAdviceMethodArgumentResolver resolver = new ChangePasswordAdviceMethodArgumentResolver();
-				if (changePasswordAdviceRepository != null) {
-					resolver.setChangePasswordAdviceRepository(changePasswordAdviceRepository);
-				} else if (changePasswordAdviceService != null) {
-					resolver.setChangePasswordAdviceRepository(new ChangePasswordAdviceServiceRepository(changePasswordAdviceService));
-				}
+				ChangePasswordAdviceMethodArgumentResolver resolver =
+					new ChangePasswordAdviceMethodArgumentResolver(changePasswordAdviceService);
+				resolver.setSecurityContextHolderStrategy(securityContextHolderStrategy);
 				resolvers.add(resolver);
 			}
 		};
 	}
 
 	@Autowired(required = false)
-	public void setChangePasswordAdviceRepository(ChangePasswordAdviceRepository changePasswordAdviceRepository) {
-		this.changePasswordAdviceRepository = changePasswordAdviceRepository;
+	public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
+		this.securityContextHolderStrategy = securityContextHolderStrategy;
 	}
 
-	@Autowired(required = false)
-	public void setChangePasswordAdviceService(ChangePasswordAdviceService changePasswordAdviceService) {
-		this.changePasswordAdviceService = changePasswordAdviceService;
-	}
 }

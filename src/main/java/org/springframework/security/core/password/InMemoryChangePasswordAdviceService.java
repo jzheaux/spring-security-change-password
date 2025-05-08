@@ -19,6 +19,7 @@ package org.springframework.security.core.password;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.security.core.password.ChangePasswordAdvice.Action;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.util.Assert;
 
@@ -27,17 +28,24 @@ public final class InMemoryChangePasswordAdviceService implements ChangePassword
 
 	@Override
 	public ChangePasswordAdvice loadPasswordAdvice(UserDetails user) {
-		return this.advice.get(user.getUsername());
+		Assert.notNull(user, "user cannot be null");
+		ChangePasswordAdvice advice = this.advice.get(user.getUsername());
+		return (advice != null) ? advice : ChangePasswordAdvice.keep();
 	}
 
 	@Override
 	public void savePasswordAdvice(UserDetails user, ChangePasswordAdvice advice) {
-		Assert.notNull(advice, "advice must not be null; if you want to remove advice, please call removePasswordAdvice");
+		Assert.notNull(user, "user cannot be null");
+		Assert.notNull(advice, "advice cannot be null; to remove, please call removePasswordAdvice");
+		if (advice.getAction() == Action.KEEP) {
+			removePasswordAdvice(user);
+		}
 		this.advice.put(user.getUsername(), advice);
 	}
 
 	@Override
 	public void removePasswordAdvice(UserDetails user) {
+		Assert.notNull(user, "user cannot be null");
 		this.advice.remove(user.getUsername());
 	}
 }

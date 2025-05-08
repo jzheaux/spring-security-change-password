@@ -23,26 +23,47 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.core.password.ChangePasswordAdvice;
+import org.springframework.security.core.password.ChangePasswordAdviceService;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 public class ChangePasswordAdvisingFilter extends OncePerRequestFilter {
+	private final ChangePasswordAdviceService changePasswordAdviceService;
+
+	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
+
 	private ChangePasswordAdviceHandler changePasswordAdviceHandler = new SimpleChangePasswordAdviceHandler(
 		DefaultChangePasswordPageGeneratingFilter.DEFAULT_CHANGE_PASSWORD_URL);
-	private ChangePasswordAdviceRepository changePasswordAdviceRepository = new HttpSessionChangePasswordAdviceRepository();
+
+	public ChangePasswordAdvisingFilter(ChangePasswordAdviceService changePasswordAdviceService) {
+		this.changePasswordAdviceService = changePasswordAdviceService;
+	}
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 		throws ServletException, IOException {
-		ChangePasswordAdvice advice = this.changePasswordAdviceRepository.loadPasswordAdvice(request);
+		Authentication authentication = this.securityContextHolderStrategy.getContext().getAuthentication();
+		if (authentication == null) {
+			chain.doFilter(request, response);
+			return;
+		}
+		if (!(authentication.getPrincipal() instanceof UserDetails user)) {
+			chain.doFilter(request, response);
+			return;
+		}
+		ChangePasswordAdvice advice = this.changePasswordAdviceService.loadPasswordAdvice(user);
 		this.changePasswordAdviceHandler.handle(request, response, chain, advice);
-	}
-
-	public void setChangePasswordAdviceRepository(ChangePasswordAdviceRepository changePasswordAdviceRepository) {
-		this.changePasswordAdviceRepository = changePasswordAdviceRepository;
 	}
 
 	public void setChangePasswordAdviceHandler(ChangePasswordAdviceHandler changePasswordAdviceHandler) {
 		this.changePasswordAdviceHandler = changePasswordAdviceHandler;
+	}
+
+	public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
+		this.securityContextHolderStrategy = securityContextHolderStrategy;
 	}
 }

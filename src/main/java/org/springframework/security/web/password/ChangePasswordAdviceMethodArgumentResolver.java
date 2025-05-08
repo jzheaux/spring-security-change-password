@@ -19,14 +19,25 @@ package org.springframework.security.web.password;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.core.MethodParameter;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.core.password.ChangePasswordAdvice;
+import org.springframework.security.core.password.ChangePasswordAdviceService;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 
 public final class ChangePasswordAdviceMethodArgumentResolver implements HandlerMethodArgumentResolver {
-	ChangePasswordAdviceRepository changePasswordAdviceRepository = new HttpSessionChangePasswordAdviceRepository();
+	private final ChangePasswordAdviceService changePasswordAdviceService;
+
+	private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
+
+	public ChangePasswordAdviceMethodArgumentResolver(ChangePasswordAdviceService changePasswordAdviceService) {
+		this.changePasswordAdviceService = changePasswordAdviceService;
+	}
 
 	@Override
 	public boolean supportsParameter(MethodParameter parameter) {
@@ -35,10 +46,17 @@ public final class ChangePasswordAdviceMethodArgumentResolver implements Handler
 
 	@Override
 	public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer, NativeWebRequest webRequest, WebDataBinderFactory binderFactory) throws Exception {
-		return this.changePasswordAdviceRepository.loadPasswordAdvice(webRequest.getNativeRequest(HttpServletRequest.class));
+		Authentication authentication = this.securityContextHolderStrategy.getContext().getAuthentication();
+		if (authentication == null) {
+			return null;
+		}
+		if (!(authentication.getPrincipal() instanceof UserDetails user)) {
+			return null;
+		}
+		return this.changePasswordAdviceService.loadPasswordAdvice(user);
 	}
 
-	public void setChangePasswordAdviceRepository(ChangePasswordAdviceRepository changePasswordAdviceRepository) {
-		this.changePasswordAdviceRepository = changePasswordAdviceRepository;
+	public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
+		this.securityContextHolderStrategy = securityContextHolderStrategy;
 	}
 }
