@@ -1,0 +1,31 @@
+= Spring Security Change Password
+
+This project contains several samples to demonstrate the different ways Spring Security might support password maintenance.
+
+There is a default `/change-password` page for changing your password at any time.
+
+There is a password advisor that tells you whether you SHOULD or MUST change your password.
+If you SHOULD, then it still allows you to log in, though the page contains a warning.
+If you MUST, you are redirected back to the `/change-password` endpoint on every request.
+An application can include any current password advice for a user by adding the `ChangePasswordAdvice` method parameter in a Spring MVC endpoint.
+
+There are a number of different ways to customize this.
+
+You can:
+
+* compose your unique list of password advisors, including custom ones
+* publish a backend service for storing password advice; handy when an admin wants to force a set of users to all change their passwords
+* publish a custom change password page that integrates with Spring Security's `POST /change-password` endpoint
+* publish a custom way of handling the advice; for example, you may not want to force them to change until their next login
+
+
+The samples are as follows:
+
+* defaults - this shows the default behavior by including the `PasswordManagementConfigurer` configurer
+* actions - this shows how to customize the action an advisor should use when it detects a problem (for example, SHOULD vs MUST)
+* backendservice - this shows how to integrate with a backend for admins to force or advise password resets
+* customadvisor - this shows how to add custom rules, like a set of unsupported characters
+* custompage - this uses a custom change password page
+
+In all cases, there is a user `compromised/password` which you can log in with.
+There is also `admin`, who gets a new password each startup to prevent it from eventually being in the compromised password list.
