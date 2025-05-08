@@ -35,6 +35,7 @@ import org.springframework.security.core.password.InMemoryChangePasswordAdviceSe
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration(proxyBeanMethods = false)
@@ -59,7 +60,7 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	InMemoryUserDetailsManager users() {
+	UserDetailsManager users() {
 		String adminPassword = UUID.randomUUID().toString();
 		this.logger.warn("The admin's password is: " + adminPassword);
 		UserDetails compromised = User.withUsername("compromised").password("{noop}password").roles("USER").build();
