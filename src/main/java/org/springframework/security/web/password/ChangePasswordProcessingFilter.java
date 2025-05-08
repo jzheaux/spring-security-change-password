@@ -35,7 +35,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.core.password.ChangeCompromisedPasswordAdvisor;
 import org.springframework.security.core.password.ChangePasswordAdvice;
+import org.springframework.security.core.password.ChangePasswordAdviceService;
 import org.springframework.security.core.password.ChangePasswordAdvisor;
+import org.springframework.security.core.password.InMemoryChangePasswordAdviceService;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsPasswordService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
@@ -68,6 +70,7 @@ public class ChangePasswordProcessingFilter extends OncePerRequestFilter {
 	private ChangePasswordAdvisor changePasswordAdvisor = new ChangeCompromisedPasswordAdvisor();
 	private PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 	private ChangePasswordAdviceRepository changePasswordAdviceRepository = new HttpSessionChangePasswordAdviceRepository();
+	private ChangePasswordAdviceService changePasswordAdviceService = new InMemoryChangePasswordAdviceService();
 
 	public ChangePasswordProcessingFilter(UserDetailsPasswordService passwords) {
 		this.passwords = passwords;
@@ -103,10 +106,18 @@ public class ChangePasswordProcessingFilter extends OncePerRequestFilter {
 		UserDetails user = (UserDetails) authentication.getPrincipal();
 		ChangePasswordAdvice advice = this.changePasswordAdvisor.adviseUpdatedPassword(user, password);
 		if (advice.getAction() == ChangePasswordAdvice.Action.KEEP) {
+			// TODO: Is there a way to simplify this?
 			this.passwords.updatePassword(user, this.passwordEncoder.encode(password));
+			this.changePasswordAdviceService.removePasswordAdvice(user);
+			this.changePasswordAdviceRepository.removePasswordAdvice(request, response);
+		} else {
+			this.changePasswordAdviceRepository.savePasswordAdvice(request, response, advice);
 		}
-		this.changePasswordAdviceRepository.savePasswordAdvice(request, response, advice);
 		this.successHandler.onAuthenticationSuccess(request, response, authentication);
+	}
+
+	public void setChangePasswordAdviceService(ChangePasswordAdviceService changePasswordAdviceService) {
+		this.changePasswordAdviceService = changePasswordAdviceService;
 	}
 
 	public void setChangePasswordAdviceRepository(ChangePasswordAdviceRepository advice) {
