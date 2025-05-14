@@ -21,6 +21,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.security.core.userdetails.UserDetails;
+
 public final class DelegatingChangePasswordAdvisor implements ChangePasswordAdvisor {
 	private final List<ChangePasswordAdvisor> advisors;
 
@@ -29,9 +31,17 @@ public final class DelegatingChangePasswordAdvisor implements ChangePasswordAdvi
 	}
 
 	@Override
-	public ChangePasswordAdvice advise(ChangePasswordAdviceRequest request) {
+	public ChangePasswordAdvice advise(UserDetails user, String password) {
 		Collection<ChangePasswordAdvice> advice = this.advisors.stream()
-			.map((advisor) -> advisor.advise(request))
+			.map((advisor) -> advisor.advise(user, password))
+			.filter(Objects::nonNull).toList();
+		return new CompositeChangePasswordAdvice(advice);
+	}
+
+	@Override
+	public ChangePasswordAdvice adviseForUpdate(UserDetails user, String password) {
+		Collection<ChangePasswordAdvice> advice = this.advisors.stream()
+			.map((advisor) -> advisor.adviseForUpdate(user, password))
 			.filter(Objects::nonNull).toList();
 		return new CompositeChangePasswordAdvice(advice);
 	}

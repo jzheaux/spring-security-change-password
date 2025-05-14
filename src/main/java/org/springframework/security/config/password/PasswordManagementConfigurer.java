@@ -25,13 +25,11 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
 import org.springframework.security.core.password.ChangeCompromisedPasswordAdvisor;
 import org.springframework.security.core.password.ChangePasswordAdvice;
-import org.springframework.security.core.password.ChangePasswordAdviceService;
 import org.springframework.security.core.password.ChangePasswordAdvisor;
 import org.springframework.security.core.password.ChangePasswordServiceAdvisor;
 import org.springframework.security.core.password.DelegatingChangePasswordAdvisor;
-import org.springframework.security.core.password.InMemoryChangePasswordAdviceService;
+import org.springframework.security.core.password.UserDetailsPasswordManager;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsPasswordService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.password.ChangePasswordAdviceHandler;
@@ -65,7 +63,7 @@ public final class PasswordManagementConfigurer<H extends HttpSecurityBuilder<H>
 
 	private ChangePasswordAdviceHandler changePasswordAdviceHandler;
 
-	private UserDetailsPasswordService userDetailsPasswordService;
+	private UserDetailsPasswordManager userDetailsPasswordManager;
 
 	public PasswordManagementConfigurer<H> changePasswordProcessingUrl(String changePasswordProcessingUrl) {
 		this.changePasswordProcessingUrl = changePasswordProcessingUrl;
@@ -93,8 +91,8 @@ public final class PasswordManagementConfigurer<H extends HttpSecurityBuilder<H>
 		return this;
 	}
 
-	public PasswordManagementConfigurer<H> changePasswordService(UserDetailsPasswordService changePasswordService) {
-		this.userDetailsPasswordService = changePasswordService;
+	public PasswordManagementConfigurer<H> userDetailsPasswordManager(UserDetailsPasswordManager userDetailsPasswordManager) {
+		this.userDetailsPasswordManager = userDetailsPasswordManager;
 		return this;
 	}
 
@@ -105,9 +103,8 @@ public final class PasswordManagementConfigurer<H extends HttpSecurityBuilder<H>
 			this.context.getBeanProvider(ChangePasswordAdviceRepository.class)
 				.getIfUnique(HttpSessionChangePasswordAdviceRepository::new);
 
-		ChangePasswordAdviceService changePasswordAdviceService =
-			this.context.getBeanProvider(ChangePasswordAdviceService.class)
-				.getIfUnique(InMemoryChangePasswordAdviceService::new);
+		UserDetailsPasswordManager passwordManager = (this.userDetailsPasswordManager == null) ?
+			this.context.getBean(UserDetailsPasswordManager.class) : this.userDetailsPasswordManager;
 
 		ChangePasswordAdvisor changePasswordAdvisor = (this.changePasswordAdvisor != null) ?
 			this.changePasswordAdvisor :
@@ -115,19 +112,19 @@ public final class PasswordManagementConfigurer<H extends HttpSecurityBuilder<H>
 				.getIfUnique(() -> {
 					List<ChangePasswordAdvisor> advisors = new ArrayList<>();
 					advisors.add(new ChangeCompromisedPasswordAdvisor());
-					advisors.add(new ChangePasswordServiceAdvisor(changePasswordAdviceService));
+					advisors.add(new ChangePasswordServiceAdvisor(passwordManager));
 					return new DelegatingChangePasswordAdvisor(advisors);
 				});
 
 		http.setSharedObject(ChangePasswordAdviceRepository.class, changePasswordAdviceRepository);
-		http.setSharedObject(ChangePasswordAdviceService.class, changePasswordAdviceService);
+		http.setSharedObject(UserDetailsPasswordManager.class, passwordManager);
 		http.setSharedObject(ChangePasswordAdvisor.class, changePasswordAdvisor);
 
 		http.getConfigurer(SessionManagementConfigurer.class)
 			.addSessionAuthenticationStrategy((authentication, request, response) -> {
 				UserDetails user = (UserDetails) authentication.getPrincipal();
 				String password = request.getParameter("password"); // TODO
-				ChangePasswordAdvice advice = changePasswordAdvisor.adviseCurrentPassword(user, password);
+				ChangePasswordAdvice advice = changePasswordAdvisor.advise(user, password);
 				changePasswordAdviceRepository.savePasswordAdvice(request, response, advice);
 			});
 	}
@@ -142,19 +139,16 @@ public final class PasswordManagementConfigurer<H extends HttpSecurityBuilder<H>
 			this.context.getBeanProvider(ChangePasswordAdviceHandler.class)
 				.getIfUnique(() -> new SimpleChangePasswordAdviceHandler(this.changePasswordUrl));
 
-		UserDetailsPasswordService passwordService = (this.userDetailsPasswordService == null) ?
-			this.context.getBean(UserDetailsPasswordService.class) : this.userDetailsPasswordService;
-
 		if (!this.customChangePasswordPage) {
 			DefaultChangePasswordPageGeneratingFilter page = new DefaultChangePasswordPageGeneratingFilter();
 			http.addFilterBefore(page, RequestCacheAwareFilter.class);
 		}
 
-		ChangePasswordProcessingFilter processing = new ChangePasswordProcessingFilter(passwordService);
+		ChangePasswordProcessingFilter processing = new ChangePasswordProcessingFilter(
+			http.getSharedObject(UserDetailsPasswordManager.class));
 		processing.setRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher(this.changePasswordProcessingUrl));
 		processing.setChangePasswordAdvisor(http.getSharedObject(ChangePasswordAdvisor.class));
 		processing.setChangePasswordAdviceRepository(http.getSharedObject(ChangePasswordAdviceRepository.class));
-		processing.setChangePasswordAdviceService(http.getSharedObject(ChangePasswordAdviceService.class));
 		processing.setPasswordEncoder(passwordEncoder);
 		processing.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
 		http.addFilterBefore(processing, RequestCacheAwareFilter.class);

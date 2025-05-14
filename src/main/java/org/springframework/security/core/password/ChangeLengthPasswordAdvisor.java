@@ -17,6 +17,7 @@
 package org.springframework.security.core.password;
 
 import org.springframework.security.core.password.ChangePasswordAdvice.Action;
+import org.springframework.security.core.userdetails.UserDetails;
 
 public class ChangeLengthPasswordAdvisor implements ChangePasswordAdvisor {
 	private final int minLength;
@@ -35,11 +36,11 @@ public class ChangeLengthPasswordAdvisor implements ChangePasswordAdvisor {
 	}
 
 	@Override
-	public ChangePasswordAdvice advise(ChangePasswordAdviceRequest request) {
-		if (request.password().length() < this.minLength) {
+	public ChangePasswordAdvice advise(UserDetails user, String password) {
+		if (password.length() < this.minLength) {
 			return new SimpleChangePasswordAdvice(this.tooShortAction, ChangePasswordReason.TOO_SHORT);
 		}
-		if (request.password().length() > this.maxLength) {
+		if (password.length() > this.maxLength) {
 			return new SimpleChangePasswordAdvice(this.tooLongAction, ChangePasswordReason.TOO_LONG);
 		}
 		return ChangePasswordAdvice.keep();

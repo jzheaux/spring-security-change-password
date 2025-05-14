@@ -19,28 +19,33 @@ package org.example.backendservice;
 import java.net.URI;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.password.ChangePasswordAdvice;
 import org.springframework.security.core.password.ChangePasswordAdvice.Action;
-import org.springframework.security.core.password.ChangePasswordAdviceService;
 import org.springframework.security.core.password.ChangePasswordReason;
 import org.springframework.security.core.password.SimpleChangePasswordAdvice;
+import org.springframework.security.core.password.UserDetailsPasswordManager;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.provisioning.UserDetailsManager;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RequestMapping("/admin/passwords")
 @RestController
 public class AdminController {
-	private final UserDetailsManager users;
-	private final ChangePasswordAdviceService advice;
+	private final UserDetailsService users;
+	private final UserDetailsPasswordManager passwords;
+	private final PasswordEncoder encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
-	public AdminController(UserDetailsManager users, ChangePasswordAdviceService advice) {
+	public AdminController(UserDetailsService users) {
 		this.users = users;
-		this.advice = advice;
+		this.passwords = (UserDetailsPasswordManager) users;
 	}
 
 	@GetMapping("/advice/{username}")
@@ -49,7 +54,7 @@ public class AdminController {
 		if (user == null) {
 			return ResponseEntity.notFound().build();
 		}
-		ChangePasswordAdvice advice = this.advice.loadPasswordAdvice(user);
+		ChangePasswordAdvice advice = this.passwords.loadPasswordAdvice(user);
 		return ResponseEntity.ok(advice);
 	}
 
@@ -60,18 +65,14 @@ public class AdminController {
 			return ResponseEntity.notFound().build();
 		}
 		ChangePasswordAdvice advice = new SimpleChangePasswordAdvice(Action.MUST_CHANGE, ChangePasswordReason.EXPIRED);
-		this.advice.savePasswordAdvice(user, advice);
+		this.passwords.savePasswordAdvice(user, advice);
 		URI uri = URI.create("/admin/passwords/advice/" + username);
 		return ResponseEntity.created(uri).body(advice);
 	}
 
 	@PostMapping("/change")
-	public ResponseEntity<?> changePassword(ChangePassword change) {
-		this.users.changePassword(null, change.password());
+	public ResponseEntity<?> changePassword(@AuthenticationPrincipal UserDetails user, @RequestParam("password") String password) {
+		this.passwords.updatePassword(user, this.encoder.encode(password));
 		return ResponseEntity.ok().build();
-	}
-
-	public record ChangePassword(String username, String password) {
-
 	}
 }

@@ -5,6 +5,7 @@ import java.util.Collection;
 import org.springframework.security.authentication.password.CompromisedPasswordChecker;
 import org.springframework.security.authentication.password.CompromisedPasswordDecision;
 import org.springframework.security.core.password.ChangePasswordAdvice.Action;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.password.HaveIBeenPwnedRestApiPasswordChecker;
 
 public final class ChangeCompromisedPasswordAdvisor implements ChangePasswordAdvisor {
@@ -13,8 +14,8 @@ public final class ChangeCompromisedPasswordAdvisor implements ChangePasswordAdv
 	private Action action = Action.SHOULD_CHANGE;
 
 	@Override
-	public ChangePasswordAdvice advise(ChangePasswordAdviceRequest request) {
-		return new Advice(this.action, this.pwned.check(request.password()));
+	public ChangePasswordAdvice advise(UserDetails user, String password) {
+		return new Advice(this.action, this.pwned.check(password));
 	}
 
 	public void setAction(Action action) {

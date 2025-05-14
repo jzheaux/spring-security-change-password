@@ -30,12 +30,10 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.password.PasswordManagementConfiguration;
 import org.springframework.security.config.password.PasswordManagementConfigurer;
-import org.springframework.security.core.password.ChangePasswordAdviceService;
-import org.springframework.security.core.password.InMemoryChangePasswordAdviceService;
+import org.springframework.security.core.password.InMemoryUserDetailsPasswordManager;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-import org.springframework.security.provisioning.UserDetailsManager;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration(proxyBeanMethods = false)
@@ -60,17 +58,12 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	UserDetailsManager users() {
+	UserDetailsService users() {
 		String adminPassword = UUID.randomUUID().toString();
 		this.logger.warn("The admin's password is: " + adminPassword);
 		UserDetails compromised = User.withUsername("compromised").password("{noop}password").roles("USER").build();
 		UserDetails admin = User.withUsername("admin").password("{noop}" + adminPassword).roles("ADMIN").build();
-		return new InMemoryUserDetailsManager(compromised, admin);
-	}
-
-	@Bean
-	ChangePasswordAdviceService changePasswordService() {
-		return new InMemoryChangePasswordAdviceService();
+		return new InMemoryUserDetailsPasswordManager(compromised, admin);
 	}
 
 }

@@ -16,18 +16,22 @@
 
 package org.springframework.security.core.password;
 
-public final class ChangePasswordServiceAdvisor implements ChangePasswordAdvisor {
-	private final ChangePasswordAdviceService changePasswordAdviceService;
+import org.springframework.security.core.userdetails.UserDetails;
 
-	public ChangePasswordServiceAdvisor(ChangePasswordAdviceService changePasswordAdviceService) {
-		this.changePasswordAdviceService = changePasswordAdviceService;
+public final class ChangePasswordServiceAdvisor implements ChangePasswordAdvisor {
+	private final UserDetailsPasswordManager passwordManager;
+
+	public ChangePasswordServiceAdvisor(UserDetailsPasswordManager passwordManager) {
+		this.passwordManager = passwordManager;
 	}
 
 	@Override
-	public ChangePasswordAdvice advise(ChangePasswordAdviceRequest request) {
-		if (request instanceof ChangeUpdatedPasswordAdviceRequest) {
-			return ChangePasswordAdvice.keep();
-		}
-		return this.changePasswordAdviceService.loadPasswordAdvice(request.userDetails());
+	public ChangePasswordAdvice advise(UserDetails user, String password) {
+		return this.passwordManager.loadPasswordAdvice(user);
+	}
+
+	@Override
+	public ChangePasswordAdvice adviseForUpdate(UserDetails user, String password) {
+		return null;
 	}
 }

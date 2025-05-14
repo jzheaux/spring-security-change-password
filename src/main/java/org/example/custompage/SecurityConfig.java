@@ -34,8 +34,10 @@ import org.springframework.security.core.password.ChangeCompromisedPasswordAdvis
 import org.springframework.security.core.password.ChangePasswordAdvice;
 import org.springframework.security.core.password.ChangePasswordAdvice.Action;
 import org.springframework.security.core.password.ChangePasswordAdvisor;
+import org.springframework.security.core.password.InMemoryUserDetailsPasswordManager;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
@@ -64,12 +66,12 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	UserDetailsManager users() {
+	UserDetailsService users() {
 		String adminPassword = UUID.randomUUID().toString();
 		this.logger.warn("The admin's password is: " + adminPassword);
 		UserDetails compromised = User.withUsername("compromised").password("{noop}password").roles("USER").build();
 		UserDetails admin = User.withUsername("admin").password("{noop}" + adminPassword).roles("ADMIN").build();
-		return new InMemoryUserDetailsManager(compromised, admin);
+		return new InMemoryUserDetailsPasswordManager(compromised, admin);
 	}
 
 	@Bean

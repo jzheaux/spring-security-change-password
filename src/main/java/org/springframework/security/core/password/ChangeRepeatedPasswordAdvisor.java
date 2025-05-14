@@ -34,13 +34,14 @@ public final class ChangeRepeatedPasswordAdvisor implements ChangePasswordAdviso
 	}
 
 	@Override
-	public ChangePasswordAdvice advise(ChangePasswordAdviceRequest request) {
-		if (!(request instanceof ChangeUpdatedPasswordAdviceRequest)) {
-			return null;
-		}
-		UserDetails user = request.userDetails();
+	public ChangePasswordAdvice advise(UserDetails user, String password) {
+		return null;
+	}
+
+	@Override
+	public ChangePasswordAdvice adviseForUpdate(UserDetails user, String password) {
 		UserDetails withPassword = this.userDetailsService.loadUserByUsername(user.getUsername());
-		if (this.passwordEncoder.matches(request.password(), withPassword.getPassword())) {
+		if (this.passwordEncoder.matches(password, withPassword.getPassword())) {
 			return new SimpleChangePasswordAdvice(this.action, ChangePasswordReason.REPEATED);
 		}
 		return ChangePasswordAdvice.keep();
